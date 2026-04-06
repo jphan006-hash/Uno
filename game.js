@@ -4,72 +4,96 @@ let deck = [];
 let discardPile = [];
 let currentCard = null;
 let turnIndex = 0;
+let direction = 1; // 1 = clockwise, -1 = reverse
 
 const COLORS = ["R", "G", "B", "Y"];
+const AI_COUNT = 2; // number of bots
 
 // JOIN
 function joinGame() {
   myName = document.getElementById("name").value;
   if (!myName) return alert("Enter a name!");
 
-  players.push({ name: myName, hand: [] });
-  alert("Joined as " + myName);
+  players.push({ name: myName, hand: [], isAI: false });
+
+  // Add AI players
+  for (let i = 1; i <= AI_COUNT; i++) {
+    players.push({
+      name: "AI_" + i,
+      hand: [],
+      isAI: true
+    });
+  }
+
+  alert("Game ready with AI players!");
 }
 
-// START GAME
+// START
 function startGame() {
-  if (players.length === 0) return alert("No players!");
-
   document.getElementById("lobby").style.display = "none";
   document.getElementById("game").style.display = "block";
 
   createDeck();
   shuffle(deck);
+  dealCards();
 
-  dealCards(); // ALWAYS 7 CARDS
-
-  // Start discard pile
   currentCard = deck.pop();
   discardPile.push(currentCard);
 
-  renderTable();
-  renderHand();
+  renderAll();
+  handleTurn();
 }
 
-// CREATE DECK
+// CREATE FULL UNO DECK
 function createDeck() {
   deck = [];
 
   for (let color of COLORS) {
     for (let i = 0; i <= 9; i++) {
       deck.push({ color, value: i });
+      if (i !== 0) deck.push({ color, value: i });
     }
 
-    // +20 cards
+    ["+2", "skip", "reverse"].forEach(v => {
+      deck.push({ color, value: v });
+      deck.push({ color, value: v });
+    });
+
+    // Custom +20
     deck.push({ color, value: "+20" });
-    deck.push({ color, value: "+20" });
+  }
+
+  // Wild cards
+  for (let i = 0; i < 4; i++) {
+    deck.push({ color: "W", value: "wild" });
   }
 }
 
 // SHUFFLE
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
     let j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 }
 
 // DEAL 7 CARDS
 function dealCards() {
-  for (let p of players) {
+  players.forEach(p => {
     p.hand = [];
     for (let i = 0; i < 7; i++) {
       p.hand.push(deck.pop());
     }
-  }
+  });
 }
 
-// RENDER TABLE
+// RENDER EVERYTHING
+function renderAll() {
+  renderTable();
+  renderHand();
+}
+
+// TABLE
 function renderTable() {
   const table = document.getElementById("table");
 
@@ -92,18 +116,18 @@ function renderTable() {
 
     div.innerHTML = `
       <strong>${p.name}</strong><br>
-      (${p.hand.length} cards)
+      (${p.hand.length})
     `;
 
     table.appendChild(div);
   });
 }
 
-// UPDATE CENTER CARD
+// CENTER
 function updateCenter() {
-  const center = document.getElementById("centerPile");
-  center.innerText = currentCard.value;
-  center.style.background = getColor(currentCard.color);
+  const c = document.getElementById("centerPile");
+  c.innerText = currentCard.value;
+  c.style.background = getColor(currentCard.color);
 }
 
 // HAND
@@ -112,80 +136,150 @@ function renderHand() {
   const handDiv = document.getElementById("hand");
   handDiv.innerHTML = "";
 
-  me.hand.forEach((card, index) => {
-    let div = document.createElement("div");
-    div.className = "card";
-    div.innerText = card.value;
-    div.style.background = getColor(card.color);
+  me.hand.forEach((card, i) => {
+    let d = document.createElement("div");
+    d.className = "card";
+    d.innerText = card.value;
+    d.style.background = getColor(card.color);
 
-    div.onclick = () => playCard(index);
-
-    handDiv.appendChild(div);
+    d.onclick = () => playCard(i);
+    handDiv.appendChild(d);
   });
 }
 
-// PLAY CARD
+// PLAY
 function playCard(index) {
-  const me = players.find(p => p.name === myName);
-  let card = me.hand[index];
+  const player = players[turnIndex];
+  if (player.name !== myName) return;
 
-  if (
+  let card = player.hand[index];
+
+  if (!isValid(card)) return alert("Invalid!");
+
+  applyCardEffect(card);
+
+  player.hand.splice(index, 1);
+  currentCard = card;
+  discardPile.push(card);
+
+  nextTurn();
+  renderAll();
+  checkWin(player);
+  handleTurn();
+}
+
+// VALID CHECK
+function isValid(card) {
+  return (
     card.color === currentCard.color ||
-    card.value === currentCard.value
-  ) {
-    me.hand.splice(index, 1);
+    card.value === currentCard.value ||
+    card.color === "W"
+  );
+}
 
-    // +20 EFFECT
-    if (card.value === "+20") {
-      let next = players[(turnIndex + 1) % players.length];
-      for (let i = 0; i < 20; i++) {
-        drawToPlayer(next);
-      }
-      alert(next.name + " draws 20 cards!");
-    }
+// EFFECTS
+function applyCardEffect(card) {
+  let next = getNextPlayer();
 
-    currentCard = card;
-    discardPile.push(card);
+  switch (card.value) {
+    case "+2":
+      drawMultiple(next, 2);
+      skipTurn();
+      break;
 
-    nextTurn();
-    renderTable();
-    renderHand();
-    checkWin(me);
-  } else {
-    alert("Invalid move!");
+    case "+20":
+      drawMultiple(next, 20);
+      skipTurn();
+      break;
+
+    case "skip":
+      skipTurn();
+      break;
+
+    case "reverse":
+      direction *= -1;
+      break;
+
+    case "wild":
+      card.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+      break;
   }
 }
 
-// DRAW CARD (CLICK DECK)
+// DRAW MULTIPLE
+function drawMultiple(player, n) {
+  for (let i = 0; i < n; i++) drawTo(player);
+}
+
+// DRAW BUTTON
 function drawCard() {
-  const me = players.find(p => p.name === myName);
-  drawToPlayer(me);
-  renderHand();
-  renderTable();
+  const player = players[turnIndex];
+  if (player.name !== myName) return;
+
+  drawTo(player);
+  renderAll();
+
+  nextTurn();
+  handleTurn();
 }
 
 // DRAW HELPER
-function drawToPlayer(player) {
-  if (deck.length === 0) {
-    reshuffleDeck();
-  }
+function drawTo(player) {
+  if (deck.length === 0) reshuffle();
 
-  if (deck.length > 0) {
-    player.hand.push(deck.pop());
-  }
+  if (deck.length > 0) player.hand.push(deck.pop());
 }
 
 // RESHUFFLE
-function reshuffleDeck() {
-  let top = discardPile.pop(); // keep current card
+function reshuffle() {
+  let top = discardPile.pop();
   deck = discardPile;
   discardPile = [top];
   shuffle(deck);
 }
 
-// TURN
+// TURN LOGIC
 function nextTurn() {
-  turnIndex = (turnIndex + 1) % players.length;
+  turnIndex = (turnIndex + direction + players.length) % players.length;
+}
+
+// SKIP
+function skipTurn() {
+  turnIndex = (turnIndex + direction + players.length) % players.length;
+}
+
+// GET NEXT PLAYER
+function getNextPlayer() {
+  return players[(turnIndex + direction + players.length) % players.length];
+}
+
+// HANDLE TURN (AI)
+function handleTurn() {
+  let player = players[turnIndex];
+
+  if (player.isAI) {
+    setTimeout(() => aiPlay(player), 800);
+  }
+}
+
+// AI LOGIC
+function aiPlay(player) {
+  let playable = player.hand.find(isValid);
+
+  if (playable) {
+    applyCardEffect(playable);
+    player.hand.splice(player.hand.indexOf(playable), 1);
+
+    currentCard = playable;
+    discardPile.push(playable);
+  } else {
+    drawTo(player);
+  }
+
+  renderAll();
+  checkWin(player);
+  nextTurn();
+  handleTurn();
 }
 
 // WIN
@@ -203,5 +297,6 @@ function getColor(c) {
     case "G": return "#2ecc71";
     case "B": return "#3498db";
     case "Y": return "#f1c40f";
+    case "W": return "#333";
   }
 }
