@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Multiplayer UNO</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: #2c3e50;
+      color: white;
+    }
+
+    #game {
+      display: none;
+    }
+
+    .table {
+      position: relative;
+      width: 600px;
+      height: 600px;
+      margin: auto;
+      border-radius: 50%;
+      background: #27ae60;
+    }
+
+    .player {
+      position: absolute;
+      transform: translate(-50%, -50%);
+    }
+
+    .cards {
+      display: flex;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .card {
+      width: 50px;
+      height: 80px;
+      background: white;
+      color: black;
+      margin: 5px;
+      line-height: 80px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    #centerPile {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 120px;
+      background: white;
+      color: black;
+      line-height: 120px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>UNO Multiplayer</h1>
+
+<div id="lobby">
+  <input id="name" placeholder="Enter your name">
+  <button onclick="joinGame()">Join</button>
+  <button onclick="startGame()">Start Game (Host)</button>
+</div>
+
+<div id="game">
+<div class="table" id="table">
+  <div id="drawPile" onclick="drawCard()">DECK</div>
+  <div id="centerPile">?</div>
+</div>
+    
+
+  <h3>Your Cards:</h3>
+  <div id="hand" class="cards"></div>
+
+  <button onclick="drawCard()">Draw</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
