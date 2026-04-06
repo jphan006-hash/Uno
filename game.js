@@ -29,9 +29,44 @@ function joinGame() {
 }
 
 // START
+// REMOVE joinGame completely
+
 function startGame() {
+  const inputs = document.querySelectorAll(".playerName");
+
+  players = [];
+
+  inputs.forEach((input, index) => {
+    let name = input.value.trim();
+
+    if (name !== "") {
+      players.push({
+        name: name,
+        hand: [],
+        isAI: index !== 0 // first player = YOU
+      });
+    }
+  });
+
+  if (players.length < 2) {
+    return alert("Enter at least 2 players!");
+  }
+
+  myName = players[0].name; // YOU are first input
+
   document.getElementById("lobby").style.display = "none";
   document.getElementById("game").style.display = "block";
+
+  createDeck();
+  shuffle(deck);
+  dealCards();
+
+  currentCard = deck.pop();
+  discardPile.push(currentCard);
+
+  renderAll();
+  handleTurn();
+}
 
   createDeck();
   shuffle(deck);
