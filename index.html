@@ -69,12 +69,17 @@
   <button onclick="startGame()">Start Game (Host)</button>
 </div>
 
-<div id="game">
-<div class="table" id="table">
-  <div id="drawPile" onclick="drawCard()">DECK</div>
-  <div id="centerPile">?</div>
+<div id="lobby">
+  <h2>Enter Player Names</h2>
+
+  <input class="playerName" placeholder="Player 1 (You)">
+  <input class="playerName" placeholder="Player 2">
+  <input class="playerName" placeholder="Player 3">
+  <input class="playerName" placeholder="Player 4">
+
+  <br><br>
+  <button onclick="startGame()">Start Game</button>
 </div>
-    
 
   <h3>Your Cards:</h3>
   <div id="hand" class="cards"></div>
